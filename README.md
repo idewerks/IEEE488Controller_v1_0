@@ -23,3 +23,10 @@ the NI version to maintain compatibility.
 The core software runs under the PyQt5 framework for GUI support, pyvisa for IEEE488 control, and pyqtgraph
 for data presentation. This release supports a single HP34401A dialog window at GPIB addr 22 for test purposes.
 
+
+MAIN WINDOW INSTRUMENT SELECTOR
+![img.png](img.png)
+
+
+INSTRUMENT DIALOG WINDOW
+![img_1.png](img_1.png)
