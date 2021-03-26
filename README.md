@@ -29,4 +29,4 @@ MAIN WINDOW INSTRUMENT SELECTOR
 
 
 INSTRUMENT DIALOG WINDOW
-![img_1.png](img_1.png)
+![img1.png](img1.png)
