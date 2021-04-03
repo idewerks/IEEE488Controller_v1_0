@@ -1,9 +1,14 @@
+
+# ----------------------------NOT CURRENTLY USED ----------------------------------------------------------------------
+
+
+
 import pyvisa as pg
-import sys
 
 rm = pg.ResourceManager()
 
-class Instrument:
+
+class Instrument1:
     def __init__(self, instrument_settings):
         # The constructor expects a dictionary where keys are instrument parameters. This is built outside the class
         # and passed to the class init here. Passing all this crap around is easier with a dict.
@@ -76,20 +81,16 @@ class Instrument:
         # Parameter is stated in terms of power line cycles (PLC's)
         self.math_enabled = new_math_enabled
 
-     ## Getters__________________________________________________________________
-
+    ## Getters__________________________________________________________________
 
     def get_instrument_id(self):
-
         gpib_command_string = '*IDN?'
         InstrumentConnection.current_instrument.query(gpib_command_string)
 
 
-
-
 class InstrumentConnection:
 
-    #current_instrument = None
+    # current_instrument = None
 
     def __init__(self, visa_resource_manager, instrument_address):
 
@@ -120,10 +121,6 @@ class InstrumentConnection:
         self.current_instrument.write(gpib_command_string)
 
 
-
-
-
-
 class InstrumentData:
 
     def __init__(self):
@@ -142,11 +139,6 @@ class SCPITranslator:
         print()
 
 
-
-
-
-
-
 current_instrument_settings = {
     "inst_address": "GPIB0::22::INSTR",
     "instrument_mode": "DCV",
@@ -160,13 +152,10 @@ current_instrument_settings = {
     "integration_time_nplc": 1,
     "math_enabled": 0}
 
-
-
-
 # __________________________________________________________________________________________________________________
 # Here's some test code for the class:
 # Instance the Instrument class with the current settings
-my_instrument = Instrument(current_instrument_settings)
+my_instrument = Instrument1(current_instrument_settings)
 # test some class methods
 # my_instrument.set_instrument_addr("gobbly gook")
 

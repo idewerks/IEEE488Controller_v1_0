@@ -206,12 +206,13 @@ class Ui_HP34401ADialog(object):
         self.samplesSlider.setSizePolicy(sizePolicy)
         self.samplesSlider.setMinimumSize(QtCore.QSize(350, 40))
         self.samplesSlider.setStyleSheet("background-color: rgb(3, 3, 3);")
-        self.samplesSlider.setMaximum(1024)
+        self.samplesSlider.setMaximum(100000)
         self.samplesSlider.setPageStep(1)
         self.samplesSlider.setProperty("value", 16)
         self.samplesSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.samplesSlider.setInvertedControls(False)
         self.samplesSlider.setTickPosition(QtWidgets.QSlider.TicksAbove)
-        self.samplesSlider.setTickInterval(25)
+        self.samplesSlider.setTickInterval(2000)
         self.samplesSlider.setObjectName("samplesSlider")
         self.verticalLayout_2.addWidget(self.samplesSlider, 0, QtCore.Qt.AlignHCenter)
         self.sampledisplayLabel = QtWidgets.QLabel(self.frame)
@@ -405,3 +406,4 @@ class Ui_HP34401ADialog(object):
         self.hp34401aTitlelabel.setText(_translate("HP34401ADialog", "HP 34401A Instrument"))
         self.ExitpushButton.setText(_translate("HP34401ADialog", "Exit"))
 from pyqtgraph import PlotWidget
+#import pyqtgraph as pg

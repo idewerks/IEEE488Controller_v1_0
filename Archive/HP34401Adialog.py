@@ -24,7 +24,7 @@ class Ui_HP34401ADialog(object):
         self.label_3 = QtWidgets.QLabel(HP34401ADialog)
         self.label_3.setGeometry(QtCore.QRect(1110, 10, 61, 61))
         self.label_3.setText("")
-        self.label_3.setPixmap(QtGui.QPixmap("idewerkslogo6.png"))
+        self.label_3.setPixmap(QtGui.QPixmap("../idewerkslogo6.png"))
         self.label_3.setScaledContents(True)
         self.label_3.setObjectName("label_3")
         self.hp34401aTitlelabel = QtWidgets.QLabel(HP34401ADialog)
