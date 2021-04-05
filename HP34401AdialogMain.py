@@ -2,34 +2,39 @@
 # This is called by main.py
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QDialog, QMainWindow, QFileDialog
+from PyQt5.QtWidgets import QDialog, QFileDialog, QApplication
 from HP34401AdialogGridG import Ui_HP34401ADialog  # Get the Designer compiled dialog python class stub
 from Model import ModelBaseclass
 from PyQt5.QtCore import Qt
 import csv
 import pyqtgraph as pg
+import pyqtgraph.exporters
 
-# ----------------------------------------------------------------------------------------------------------------------
+
 class HP34401Adialog(QDialog):
     def __init__(self):
         super(HP34401Adialog, self).__init__()
         # Enable windows minimize/maximize buttons
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+
         # Instance the instrument model
         self.model = ModelBaseclass()
+
         # Instance the UI
         self.ui = Ui_HP34401ADialog()
         self.ui.setupUi(self)
 
         pg.setConfigOptions(antialias=True)
+        # Define the color, width,style of the min max lines plot
+        self.max_value_linetype = pg.mkPen(color='y', width=2, style=QtCore.Qt.DashDotDotLine, cosmetic=True)
+        self.min_value_linetype = pg.mkPen(color='y', width=2, style=QtCore.Qt.DashDotDotLine, cosmetic=True)
 
-        self.max_value_linetype = pg.mkPen(color='y', width=3, style=QtCore.Qt.DashDotDotLine, cosmetic=True)
-        self.min_value_linetype = pg.mkPen(color='y', width=3, style=QtCore.Qt.DashDotDotLine, cosmetic=True)
         # Instance the plotwidget
         self.this_plot_widget = self.ui.plotWidget
         self.max_value_plot = []
         self.min_value_plot = []
+        self.plot = []
 
         self.initialize_instrument_ui()
         # Setup Event Handlers
@@ -40,7 +45,6 @@ class HP34401Adialog(QDialog):
         self.ui.TriggerDelaySpinbox.valueChanged.connect(self.trigger_delay_change)
         self.ui.showdatapointscheckBox.clicked.connect(self.show_datapoints)
         self.ui.showminmaxcheckBox.clicked.connect(self.show_minmax)
-
 
         # event handlers for mode button group----------------------------------------------
         self.ui.ACIpushButton.clicked.connect(self.set_aci_mode)
@@ -54,7 +58,11 @@ class HP34401Adialog(QDialog):
         self.ui.FWOpushButton.clicked.connect(self.set_fwo_mode)
         self.ui.TWOpushButton.clicked.connect(self.set_two_mode)
         self.ui.ExitpushButton.clicked.connect(self.exit_hp34401)
+        # Save event handlers
         self.ui.savescanpushButton.clicked.connect(self.save_scan_csv)
+        self.ui.saveplotButton.clicked.connect(self.save_plot)
+        self.ui.scrollwindowcomboBox.currentTextChanged.connect(self.scroll_window_update)
+        self.ui.PlotmodeCombobox.currentTextChanged.connect(self.update_plot_mode)
         # Set up scan timer
         self.ui_timer = QTimer(self)
         self.ui_timer.timeout.connect(self.start_scan)
@@ -62,14 +70,11 @@ class HP34401Adialog(QDialog):
     def initialize_instrument_ui(self):
         # This is called during the dialog init method. Initialize the ui elements.
         self.this_plot_widget.setAntialiasing(True)
-        print(dir(self.this_plot_widget.getPlotItem()))
-        self.this_plot_widget.addLegend(pen="r")  # pen here is the legend border color
+        self.this_plot_widget.addLegend(pen="m")  # pen here is the legend border color
         # Note there is no remove item method for the legend
-
         self.plot = self.this_plot_widget.plot(x=[1.0, 2.0, 3.0, 4.0],
                                                y=[1.0, 2.0, 3.0, 4.0],
                                                pen='r', symbol='o', symbolBrush='g', name='CHANNEL 1')
-
 
         self.max_value_plot = []
         self.min_value_plot = []
@@ -79,10 +84,12 @@ class HP34401Adialog(QDialog):
         # tweak the axiis
         self.this_plot_widget.getAxis('left').setTextPen('y')
         self.this_plot_widget.getAxis('bottom').setTextPen('g')
+        # This changes the grid color, text, axis title
+        # self.this_plot_widget.getAxis('bottom').setPen('g')
         self.this_plot_widget.getAxis('bottom').setStyle(tickTextOffset=10)
         self.this_plot_widget.getAxis('left').setStyle(tickTextOffset=10)
-        self.this_plot_widget.getAxis('bottom').setStyle(tickLength=40)
-        self.this_plot_widget.getAxis('left').setStyle(tickLength=40)
+        self.this_plot_widget.getAxis('bottom').setStyle(tickLength=80)
+        self.this_plot_widget.getAxis('left').setStyle(tickLength=-40)
         self.this_plot_widget.setLabel('bottom', 'TIME', units='unix')
         # Set a bunch of default initial values
         self.ui.progressBar.setValue(0)
@@ -188,25 +195,22 @@ class HP34401Adialog(QDialog):
         self.model.triggerDelay_setting = self.ui.TriggerDelaySpinbox.value()
 
     def start_sample_timer(self):
-        # self.model.start_sample_timer()
+        # This enables the scan timer which starts the scan loop
+        # Initialize and clear elements here as part of the start scan process
         self.model.data_timestamp.clear()
         self.model.data_collected.clear()
         self.model.current_sample = 0
         self.model.setup_measurement()
         self.ui.progressBar.setMaximum(self.model.samples_setting)
-        #self.ui_timer.start(20000)
         self.ui_timer.start(self.model.timer_setting)
+        # Note the timer setting is located in the model. Using too fast of a setting can starve the ui loop
         self.ui.statustextBrowser.append('Starting Sample Timer')
         self.update_model_from_ui()
         self.model.last_visa_error = ''
 
-        # self.plot.setPen("r")
-        # self.plot.setSymbolSize(0)
-
     def stop_sample_timer(self):
         self.ui.samplestoppushButton.hide()
         self.ui.samplestartpushButton.show()
-        # self.model.stop_sample_timer()
         self.ui_timer.stop()
         self.ui.statustextBrowser.append('Stopping Sample Timer')
 
@@ -221,57 +225,47 @@ class HP34401Adialog(QDialog):
         # This starts the scan timer
         # This method is executed repeatedly at the timer rate
         # until the # of samples desired = actual samples taken
-        # Once the sample conditions are met, the data is plotted to our embedded pyqtgraph
+        # The data is plotted to our embedded pyqtgraph on a point-point basis
         # NOTE- Actual rates will also depend on the response time of the instrument. If the sampling rate
         # is faster than the instrument rate, the slowest prevails.
-        # self.update_model_from_ui()
+
         self.ui.savescanpushButton.hide()
-        self.ui.samplestoppushButton.show()
+        self.ui.saveplotButton.hide()
         self.ui.samplestartpushButton.hide()
+        self.ui.samplestoppushButton.show()
         self.ui.progressBar.setValue(self.model.current_sample)
         self.ui.samplestakenLabel.setText(
             'SAMPLE: ' + str(self.model.current_sample + 1) + ' of ' + str(self.model.samples_setting))
         self.this_plot_widget.setLabel('bottom', 'TIME', units='unix')
-
         # Parse the mode and set any ui elements, then call the start_scan method in the model.
         # We are trying to keep the UI and DATA concerns away from each other
-
         if self.model.mode_setting == "DCV":
             self.this_plot_widget.setLabel('left', 'Value', units='Volts DC')
             self.model.start_scan()
-
         elif self.model.mode_setting == "ACV":
             self.this_plot_widget.setLabel('left', 'Value', units='Volts AC')
             self.model.start_scan()
-
         elif self.model.mode_setting == "TWO":
             self.this_plot_widget.setLabel('left', 'Value', units='Ohms 2wire')
             self.model.start_scan()
-
         elif self.model.mode_setting == "FWO":
             self.this_plot_widget.setLabel('left', 'Value', units='Ohms 4wire')
             self.model.start_scan()
-
         elif self.model.mode_setting == "DCI":
             self.this_plot_widget.setLabel('left', 'Value', units='Amps DC')
             self.model.start_scan()
-
         elif self.model.mode_setting == "ACI":
             self.this_plot_widget.setLabel('left', 'Value', units='Amps AC')
             self.model.start_scan()
-
         elif self.model.mode_setting == "FRE":
             self.this_plot_widget.setLabel('left', 'Value', units='Hertz Frequency')
             self.model.start_scan()
-
         elif self.model.mode_setting == "PER":
             self.this_plot_widget.setLabel('left', 'Value', units='Seconds Period')
             self.model.start_scan()
-
         elif self.model.mode_setting == "CON":
             self.this_plot_widget.setLabel('left', 'Value', units='Continuity')
             self.model.start_scan()
-
         elif self.model.mode_setting == "DIO":
             self.this_plot_widget.setLabel('left', 'Value', units='Diode')
             self.model.start_scan()
@@ -280,25 +274,32 @@ class HP34401Adialog(QDialog):
         if self.model.last_visa_error:
             self.ui.statustextBrowser.append(self.model.last_visa_error)
             self.ui.statustextBrowser.append("Datapoint Ignored- Visa Fault")
-
         else:
             self.ui.lcdNumber.display(str(float(
                 self.model.data_collected[-1])) + " " + self.model.mode_setting)  # Update LCD with most current reading
-            self.plot.setData(self.model.data_timestamp, self.model.data_collected)
-            # If min/max selected, then handle it
-            if self.ui.showminmaxcheckBox.isChecked():
 
+            if self.model.plot_mode == 'Data Scroll':
+                plot_range = -self.model.data_scroll_window
+                scroll_plot_data = self.model.data_collected[plot_range:]
+                scroll_time_data = self.model.data_timestamp[plot_range:]
+                self.plot.setData(scroll_time_data, scroll_plot_data)
+            else:
+                self.plot.setData(self.model.data_timestamp, self.model.data_collected)
+
+            if self.ui.showminmaxcheckBox.isChecked():
                 self.show_minmax()
 
         if self.model.current_sample == self.model.samples_setting:
+            # END OF COMPLETE SCAN
             self.ui.statustextBrowser.append('Scan completed with ' + str(self.model.current_sample) + ' DataPoints')
-            self.plot.setData(self.model.data_timestamp, self.model.data_collected)
+            #self.plot.setData(self.model.data_timestamp, self.model.data_collected)
             self.ui.progressBar.setValue(self.model.current_sample)
             self.ui_timer.stop()
             self.ui.statustextBrowser.append('Scan timer stopped')
             self.ui.savescanpushButton.show()
-            self.ui.samplestoppushButton.hide()
+            self.ui.saveplotButton.show()
             self.ui.samplestartpushButton.show()
+            self.ui.samplestoppushButton.hide()
 
     def save_scan_csv(self):
         # Save the timestamp and collected data lists to a user defined csv file
@@ -335,25 +336,25 @@ class HP34401Adialog(QDialog):
         self.model.NPLC_setting = self.ui.NplcCombobox.currentText()
         self.model.trigger_setting = self.ui.TrigsrcCombobox.currentText()
         self.model.triggerDelay_setting = self.ui.TriggerDelaySpinbox.value()
+        self.model.data_scroll_window = int(self.ui.scrollwindowcomboBox.currentText())
         self.ui.statustextBrowser.append('Updated model from UI')
 
     def show_datapoints(self):
         # This method sets the symbol size to either 0 (no points), or size 10 to plot.
-        # Probably not the best way to do this ?
+        # Probably not the best way to do this ? pyqtgraph makes it easy to create things, not so easy to remove
         if self.ui.showdatapointscheckBox.isChecked():
             self.plot.setSymbolSize(10)
         else:
             self.plot.setSymbolSize(0)
 
     def show_minmax(self):
-
+        # Handle the maximum value line
         if self.ui.showminmaxcheckBox.isChecked():
             if self.max_value_plot:
                 # If the plot exists, we just want to change the data
                 self.max_value_plot.setPen(self.max_value_linetype)
                 if self.model.current_sample > 0:
                     # Test for an empty list, max() will throw an error otherwise
-
                     # Update the plot data
                     self.max_value_plot.setValue(max(self.model.data_collected))
             else:
@@ -364,17 +365,13 @@ class HP34401Adialog(QDialog):
             self.this_plot_widget.removeItem(self.max_value_plot)
             self.max_value_plot = []
 
-        # -------------------------
+        # Handle the minimum value line
         if self.ui.showminmaxcheckBox.isChecked():
             if self.min_value_plot:
-                # If the plot exists, we just want to change the dataq
-
-
+                # If the plot exists, we just want to change the data
                 self.min_value_plot.setPen(self.min_value_linetype)
-
                 if self.model.current_sample > 0:
                     # Test for an empty list, max() will throw an error otherwise
-
                     # Update the plot data
                     self.min_value_plot.setValue(min(self.model.data_collected))
             else:
@@ -385,18 +382,33 @@ class HP34401Adialog(QDialog):
             self.this_plot_widget.removeItem(self.min_value_plot)
             self.min_value_plot = []
 
+    def save_plot(self):
+        # Save current plot as graphic type
+        # exporter = pg.exporters.ImageExporter(self.this_plot_widget)
+        exporter = pg.exporters.ImageExporter(self.plot)
 
+        # exporter.parameters()['height'] = 1024
+        exporter.params['width'] = 1024
+        # exporter.export('export.png')
+        # This fails with a width error if we specify it, if we dont it throws a 0x0 size error
+        print()
 
+        # Reported fix in v0.12 of pyqtgraph. I installed but I have a sip error
+        # reverted back to v0.11 for now so have not figured this out yet
 
+        # fix: in ImageExporter.py, line 70:
+        # bg = np.empty((int(self.params['width']), int(self.params['height']), 4), dtype=np.ubyte)
 
+    def scroll_window_update(self):
+        # Scroll window width has changed
+        w_width = -int(self.ui.scrollwindowcomboBox.currentText())
+        self.model.data_scroll_window = w_width
 
-
-
-
+    def update_plot_mode(self):
+        self.model.plot_mode = self.ui.PlotmodeCombobox.currentText()
 
 
 if __name__ == '__main__':
     import sys
-
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtGui.QApplication.instance().exec_()
+        QApplication.instance().exec_()

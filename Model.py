@@ -31,6 +31,9 @@ class ModelBaseclass:
         self.timer_setting = 20
         self.gpib_address = 'GPIB0::22::INSTR'
         self.last_visa_error = None
+        self.data_scroll_window = -10
+        self.plot_mode = 'Data Squish'
+
 
     def update_mode_state(self, mode_string):
         self.mode_setting = mode_string
