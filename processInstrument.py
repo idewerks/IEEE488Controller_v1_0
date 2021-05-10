@@ -1,4 +1,3 @@
-
 def getInstrumentInfo(rm, instrument):
     # Lets try and identify the instrument we just selected in the combobox instrument selector
     this_instrument = rm.open_resource(instrument)
@@ -17,13 +16,7 @@ def getInstrumentInfo(rm, instrument):
     hpib_response = this_instrument.query('*IDN?')
 
     delimiter = ':'
-    #if the response is < 6 chars OR it contains a colon, the 488.2 command failed, try a 488.1 command
-    if len(hpib_response) <6 or delimiter in hpib_response:
+    # if the response is < 6 chars OR it contains a colon, the 488.2 command failed, try a 488.1 command
+    if len(hpib_response) < 6 or delimiter in hpib_response:
         hpib_response = this_instrument.query('ID?')
-
-
-
-
-
-
 

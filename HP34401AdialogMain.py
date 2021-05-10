@@ -1,9 +1,9 @@
 # This is the main dialog window for the HP34401A Instrument
 # This is called by main.py
-from PyQt5 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QDialog, QFileDialog, QApplication
-from HP34401AdialogGridG import Ui_HP34401ADialog  # Get the Designer compiled dialog python class stub
+from HP34401AdialogGridH import Ui_HP34401ADialog  # Get the Designer compiled dialog python class stub
 from Model import ModelBaseclass
 from PyQt5.QtCore import Qt
 import csv
@@ -17,10 +17,8 @@ class HP34401Adialog(QDialog):
         # Enable windows minimize/maximize buttons
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
-
         # Instance the instrument model
         self.model = ModelBaseclass()
-
         # Instance the UI
         self.ui = Ui_HP34401ADialog()
         self.ui.setupUi(self)
@@ -58,11 +56,12 @@ class HP34401Adialog(QDialog):
         self.ui.FWOpushButton.clicked.connect(self.set_fwo_mode)
         self.ui.TWOpushButton.clicked.connect(self.set_two_mode)
         self.ui.ExitpushButton.clicked.connect(self.exit_hp34401)
-        # Save event handlers
+        # UI  event handlers
         self.ui.savescanpushButton.clicked.connect(self.save_scan_csv)
         self.ui.saveplotButton.clicked.connect(self.save_plot)
         self.ui.scrollwindowcomboBox.currentTextChanged.connect(self.scroll_window_update)
         self.ui.PlotmodeCombobox.currentTextChanged.connect(self.update_plot_mode)
+
         # Set up scan timer
         self.ui_timer = QTimer(self)
         self.ui_timer.timeout.connect(self.start_scan)
@@ -70,22 +69,19 @@ class HP34401Adialog(QDialog):
     def initialize_instrument_ui(self):
         # This is called during the dialog init method. Initialize the ui elements.
         self.this_plot_widget.setAntialiasing(True)
+        self.this_plot_widget.setBackground('#2B2B2B')
+        self.this_plot_widget.showGrid(x=True, y=True)
+        self.max_value_plot = []
+        self.min_value_plot = []
         self.this_plot_widget.addLegend(pen="m")  # pen here is the legend border color
         # Note there is no remove item method for the legend
         self.plot = self.this_plot_widget.plot(x=[1.0, 2.0, 3.0, 4.0],
                                                y=[1.0, 2.0, 3.0, 4.0],
                                                pen='r', symbol='o', symbolBrush='g', name='CHANNEL 1')
 
-        self.max_value_plot = []
-        self.min_value_plot = []
-        self.this_plot_widget.getAxis('bottom').setTextPen('g')
-        self.this_plot_widget.setBackground('#2B2B2B')
-        self.this_plot_widget.showGrid(x=True, y=True)
         # tweak the axiis
         self.this_plot_widget.getAxis('left').setTextPen('y')
         self.this_plot_widget.getAxis('bottom').setTextPen('g')
-        # This changes the grid color, text, axis title
-        # self.this_plot_widget.getAxis('bottom').setPen('g')
         self.this_plot_widget.getAxis('bottom').setStyle(tickTextOffset=10)
         self.this_plot_widget.getAxis('left').setStyle(tickTextOffset=10)
         self.this_plot_widget.getAxis('bottom').setStyle(tickLength=80)
@@ -111,7 +107,7 @@ class HP34401Adialog(QDialog):
         self.ui.ACbandwidthCombobox.addItems(["3", "20", "200"])
         self.ui.MathCombobox.addItems(["Disabled", "Enabled"])
         self.ui.TrigsrcCombobox.addItems(["Immediate", "External", "Bus"])
-        self.ui.PlotmodeCombobox.addItems(["Data Squish", "Data Scroll", "Snapshot"])
+        self.ui.PlotmodeCombobox.addItems(["Data Squish", "Data Scroll"])
         self.ui.scrollwindowcomboBox.addItems(["10", "100", "1000", "10000"])
 
     def process_mode_buttons(self, button):
@@ -187,7 +183,7 @@ class HP34401Adialog(QDialog):
         self.this_plot_widget.setLabel('left', 'Value', units='Ohms 4wire')
 
     def sample_count_change(self):
-        self.model.sample_count_change(self.ui.samplesSlider.value())
+        self.model.change_sample_count(self.ui.samplesSlider.value())
         self.ui.sampledisplayLabel.setText('TOTAL SAMPLES= ' + str(self.model.samples_setting))
         # self.ui.progressBar.setMaximum(self.model.samples_setting)
 
@@ -236,7 +232,7 @@ class HP34401Adialog(QDialog):
         self.ui.progressBar.setValue(self.model.current_sample)
         self.ui.samplestakenLabel.setText(
             'SAMPLE: ' + str(self.model.current_sample + 1) + ' of ' + str(self.model.samples_setting))
-        self.this_plot_widget.setLabel('bottom', 'TIME', units='unix')
+        self.this_plot_widget.setLabel('bottom', 'TIME', units=' unix')
         # Parse the mode and set any ui elements, then call the start_scan method in the model.
         # We are trying to keep the UI and DATA concerns away from each other
         if self.model.mode_setting == "DCV":
